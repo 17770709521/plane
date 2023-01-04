@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="vue.js"></script>
+    <link rel="stylesheet" href="palne.css">
+</head>
+<body>
+    <div id="app">
+        <div class="box">
+            <div v-if="!isPlay" class="start">
+                <img src="image/开始背景.png">
+                <div @click="play" class="start-btn">开始游戏</div>
+            </div>
+            <div v-else class="start" ref="plane">
+                <img src="image/background_1.png">
+                <div class="score">分数：{{score}}</div>
+                <img class="myPlane" @mousemove="myPlaneMove" v-bind:style="{top:plane.y + 'px',left: plane.x + 'px'}" src="image/我的飞机.gif">
+                <img v-for="item in bullets" v-bind:src="item.img" v-bind:style="{top: item.y +'px',left:item.x +'px'}">
+                <img v-for="item in enemys"  v-bind:src="item.img" v-bind:style="{top: item.y +'px',left:item.x +'px'}" >
+                <div class="gameover" v-if="end">
+                    <div>gameover</div>
+                    <div>您的分数为:{{score}}</div>
+                    <div @click="start">再来一局</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        new Vue({
+            el:"#app",
+            data(){
+                return{
+                    isPlay:false,
+                    plane:{
+                        x:127,
+                        y:480
+                    },
+                    bullets:[],
+                    enemys:[],
+                    count:0,
+                    score:0,
+                    end:false,
+                    timer:"",
+                    timer1:""
+                }
+            },
+            methods:{
+                //再来一局
+                start(){
+                    this.isPlay = false
+                    this.end = false
+                    this.enemys = []
+                    this.bullets=[]
+                    this.plane.x = 127
+                    this.plane.y = 480
+                    this.score = 0
+                    this.count = 0
+                },
+                //开始
+                play(){
+                    this.isPlay = true
+                    this.cjBullets()
+                    this.timer= setInterval(this.cjBullets,30)
+                    this.timer1 = setInterval(this.cjEnemys,1000)
+                },
+                //我方飞机移动
+                myPlaneMove(event){
+                    if(!this.end){
+                        var x = event.pageX - this.$refs.plane.offsetLeft - 33;
+                        var y = event.pageY - this.$refs.plane.offsetTop - 40;
+                        this.plane.x = x;
+                        this.plane.y = y
+                    }
+                },
+                //创建子弹
+                cjBullets(){
+                    var obj ={
+                        img:"./image/bullet1.png",
+                        x: this.plane.x +32,
+                        y:this.plane.y - 20,
+                        speed:30
+                    }
+                    this.bullets.push(obj)
+                    this.bulletsMove()
+                },
+                //子弹移动
+                bulletsMove(){
+                    var that = this
+                    this.bullets.forEach((item,index) => {
+                        //让子弹飞
+                        item.y = item.y - item.speed
+                        if(item.y<0){
+                            this.bullets.splice(index,1)
+                        }
+                        //子弹是否打中飞机
+                        that.checkBoom(item,index)
+                    });
+                },
+                //创建敌机
+                cjEnemys(){
+                    var r =parseInt(Math.random()*11+1);
+                    var src,speed,hp,w,h;
+                    this.count++
+                   if(r%4==2){
+                        src = 2
+                        speed = 15
+                        hp = 90
+                        w = 46
+                        h = 60
+                    }else{
+                        src = 1
+                        speed = 40
+                        hp = 10
+                        w = 34
+                        h = 24
+                    }
+                    if(this.count>=20){
+                        src = 4
+                        speed = 5
+                        hp = 180
+                        w = 110
+                        h = 164
+                        this.count = 0
+                    }
+                    var num = 320 - w
+                    var obj ={
+                        img:"./image/enemy"+src+"_fly_1.png",
+                        x: parseInt(Math.random()*num),
+                        y:0,
+                        speed:speed,
+                        w:w,
+                        h:h,
+                        hp:hp,
+                        src:src,
+                        die:false
+                    }
+                    this.enemys.push(obj)
+                    this.enemysMove()
+                },
+                //敌机移动
+                enemysMove(){
+                    var that = this
+                    this.enemys.forEach((item,index) => {
+                        item.y = item.y + item.speed
+                        if(item.y>=568){
+                            this.enemys.splice(index,1)
+                        }
+                    this.checkBeng(item);
+
+                    });
+                },
+                //检查是否爆炸
+                checkBoom(b_item,b_index){
+                    var that = this
+                    this.enemys.forEach((e_item,index) => {
+                       if(b_item.x-e_item.x>=0&&b_item.x-e_item.x<=e_item.w&&b_item.y-e_item.y>=0&&b_item.y-e_item.y<=e_item.h){
+                           that.bullets.splice(b_index,1)
+                           e_item.hp-=10;
+                            if(e_item.hp<=0){
+                                that.enemys[index].img = "./image/fly"+e_item.src+"_boom.gif"
+                                that.score +=e_item.src
+                                e_item.die = true
+                                setTimeout(this.boomFun,100);
+                            }else{
+                                that.enemys[index].img = "./image/fly"+e_item.src+"_biu.png"
+                            }
+                       }
+                    });
+                   
+                },
+                boomFun(){
+                    var that = this
+                    this.enemys.forEach((e_item,index) => {
+                       if(e_item.die){
+                            that.enemys.splice(index,1) 
+                       }
+                    });
+                },
+                //判断我方飞机是否发生碰撞
+                checkBeng(e_item){
+                    var that = this
+                    if(e_item.x+e_item.w - that.plane.x>0&&e_item.x-that.plane.x<66&&e_item.y+e_item.h - that.plane.y>0&&e_item.y-that.plane.y<66){
+                        clearInterval(that.timer);
+                        clearInterval(that.timer1);
+                        that.end = true;
+                    }
+                }
+            }
+        })
+    </script>
+</body>
+</html>
